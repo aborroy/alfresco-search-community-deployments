@@ -7,9 +7,9 @@
 # knows every deployed model, so the map is generated from it, through the model-ns-prefix-mapping
 # addon: https://github.com/AlfrescoLabs/model-ns-prefix-mapping
 #
-# Usage, from the repository root, with the stack running and the addon installed:
+# Usage, from a deployment directory, with the stack running and the addon installed:
 #
-#   tools/fetch-prefix-map.sh > minimal/config/prefixes.json
+#   ../tools/fetch-prefix-map.sh > config/prefixes.json
 #
 # Environment:
 #

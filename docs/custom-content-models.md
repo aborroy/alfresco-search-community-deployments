@@ -5,7 +5,9 @@ does not. Without it, nodes that use the model are indexed incompletely or not a
 nothing reports an error to the user who created them.
 
 None of the four deployments here ships a custom model, so all four run correctly as they are.
-Read this before deploying a model of your own on top of one of them.
+Read this before deploying a model of your own on top of one of them, and read it before pointing
+`solr-to-opensearch-migration` at an existing repository, which usually has models already
+deployed.
 
 ## Why the indexer needs help resolving namespaces
 
@@ -126,12 +128,12 @@ JAR into `tomcat/webapps/alfresco/WEB-INF/lib`, and start it again.
 
 ### 2. Fetch the map
 
-Deploy your model first, so it is in the dictionary the addon reads. Then, with the stack
-running:
+Deploy your model first, so it is in the dictionary the addon reads. Then, with the stack running,
+from the deployment directory:
 
 ```bash
-mkdir -p minimal/config
-tools/fetch-prefix-map.sh > minimal/config/prefixes.json
+mkdir -p config
+../tools/fetch-prefix-map.sh > config/prefixes.json
 ```
 
 The script calls `GET /alfresco/s/model/ns-prefix-map` as an administrator and refuses to write
@@ -182,6 +184,20 @@ docker compose rm -sf batch-indexer && docker compose up -d batch-indexer
 
 The indexer never talks to the addon. Once the file exists, the addon can stay for the next model
 you deploy or be unmounted again.
+
+### Where each deployment puts it
+
+| Deployment | Addon JAR | Prefix-map flag |
+| --- | --- | --- |
+| [`minimal`](../minimal/README.md) | bind mount on `alfresco`, which declares no `volumes` yet | new `JAVA_OPTS` on `batch-indexer` |
+| [`minimal-tls`](../minimal-tls/README.md) | append to the `volumes` `alfresco` already has for the truststore | append to the `JAVA_TOOL_OPTIONS` `batch-indexer` already has |
+| [`full-stack`](../full-stack/README.md) | `alfresco/modules/jars/`, then `docker compose up -d --build alfresco` | new `JAVA_OPTS` on `batch-indexer` |
+| [`solr-to-opensearch-migration`](../solr-to-opensearch-migration/README.md) | append to the `volumes` `alfresco` already has for `alf-data` | new `JAVA_OPTS` on `batch-indexer` |
+
+The migration deployment is the one with an ordering constraint: do all of this before its first
+start. It walks history once, in ascending commit time, so nodes indexed under an incomplete map
+are not revisited when the file is corrected, and recovering them means reseeding the cursor and
+replaying the whole history.
 
 ## Verifying
 

@@ -24,8 +24,10 @@ successfully with 15.6 GiB allocated to Docker.
 Only `full-stack` is the complete platform. The other three deliberately omit the UI layer to
 keep the search configuration in the foreground.
 
-`tools/` is not a deployment. It holds `fetch-prefix-map.sh`, needed only if you deploy a custom
-content model on top of one of these stacks; see
+`tools/` is not a deployment. It holds `fetch-prefix-map.sh`, which generates the namespace prefix
+map the indexer needs whenever a custom content model is in play: on any of these stacks where you
+deploy a model of your own, and on `solr-to-opensearch-migration` if the repository you are
+migrating already has one. Stock repositories need nothing. See
 [docs/custom-content-models.md](docs/custom-content-models.md).
 
 ## Quick start

@@ -41,10 +41,12 @@ rm -rf certs && ./generate-certs.sh
 
 ## Credentials
 
-From `../.env`:
+OpenSearch, from `../.env`:
 
 - User: `admin`
 - Password: `DemoTls13!Pass`
+
+The repository keeps the stock `admin`/`admin`.
 
 ## Start
 
@@ -68,6 +70,35 @@ curl -sk -u admin:'DemoTls13!Pass' --tlsv1.2 --tls-max 1.2 https://localhost:920
 curl -sk -u admin:'DemoTls13!Pass' "https://localhost:9200/_cat/indices?v"
 docker compose logs -f batch-indexer
 ```
+
+## Custom content models
+
+The repository here is stock, so the indexer's built-in namespace prefix map covers it. Deploy a
+model of your own and the map has to be regenerated from the repository, or nodes using the model
+are indexed incompletely and silently. The procedure is in
+[../docs/custom-content-models.md](../docs/custom-content-models.md); two details are specific to
+this variant.
+
+The indexer already receives `JAVA_TOOL_OPTIONS` for the truststore, so append the flag to that
+variable rather than adding a `JAVA_OPTS` key:
+
+```yaml
+  batch-indexer:
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Djavax.net.ssl.trustStore=/certs/batch-indexer-truststore.jks
+        -Djavax.net.ssl.trustStorePassword=${TRUSTSTORE_PASSWORD}
+        -Dalfresco.reindex.prefixes-file=file:/config/prefixes.json
+    volumes:
+      - ./certs/batch-indexer-truststore.jks:/certs/batch-indexer-truststore.jks:ro
+      - ./config/prefixes.json:/config/prefixes.json:ro
+```
+
+Both services already declare `volumes`, so append to those lists: the addon JAR goes on
+`alfresco` next to the truststore mount, and `prefixes.json` on `batch-indexer` next to its own.
+`tools/fetch-prefix-map.sh` talks to the repository over plain HTTP on port 8080 as `admin`/`admin`,
+which TLS here does not change: only the OpenSearch link is encrypted, and the password in
+Credentials above is OpenSearch's, not the repository's.
 
 ## What changes compared to the plain variant
 

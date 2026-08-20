@@ -99,6 +99,34 @@ Each directory holds an `empty` placeholder file so the `COPY` instructions succ
 clean checkout. Leave it in place. After adding anything, rebuild with
 `docker compose up -d --build`.
 
+A custom content model needs one thing more than deploying the model. The batch indexer reads the
+repository database directly and turns namespace URIs into field names through a static map, so a
+namespace it does not know is indexed incompletely and without any error: nodes whose own type
+comes from your model are not indexed at all. Generate the map from this repository and mount it:
+
+```bash
+curl -sSL -o alfresco/modules/jars/model-ns-prefix-mapping-1.2.0.jar \
+  https://github.com/AlfrescoLabs/model-ns-prefix-mapping/releases/download/1.2.0/model-ns-prefix-mapping-1.2.0.jar
+docker compose up -d --build
+# then, with your model deployed, through the same nginx that fronts the repository
+../tools/fetch-prefix-map.sh > config/prefixes.json
+```
+
+Then add the file and the flag to `batch-indexer` in `compose.yaml`:
+
+```yaml
+  batch-indexer:
+    environment:
+      JAVA_OPTS: -Dalfresco.reindex.prefixes-file=file:/config/prefixes.json
+    volumes:
+      - ./config/prefixes.json:/config/prefixes.json:ro
+```
+
+The addon is the repository extension that serves the map, and it is the only extension these
+deployments ever ask you to add. Details, including what a missing namespace costs and how to
+reindex the nodes affected, are in
+[../docs/custom-content-models.md](../docs/custom-content-models.md).
+
 ## Notes
 
 - The nginx configuration returns 403 for every path that would expose the repository's Solr

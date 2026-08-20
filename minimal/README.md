@@ -91,4 +91,9 @@ There are no volumes, so this discards everything. That is deliberate for this v
 - Because there are no volumes, every `docker compose down` starts from an empty repository
   and an empty index, which keeps the indexer's job trivial. The cursor seeding problem that
   `../solr-to-opensearch-migration` deals with simply does not arise here.
+- The repository here is stock, so the indexer's built-in namespace prefix map covers it. Deploy
+  a custom content model on top of this stack and that stops being true: the model's namespace
+  has to be in the map or its nodes are indexed incompletely, and silently. Generate one with
+  `../tools/fetch-prefix-map.sh` and mount it, as described in
+  [../docs/custom-content-models.md](../docs/custom-content-models.md).
 - For the same stack with TLS 1.3 enabled, see `../minimal-tls`.

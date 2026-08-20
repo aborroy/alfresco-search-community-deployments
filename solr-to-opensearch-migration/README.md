@@ -15,6 +15,48 @@ Both phases are driven by environment variables, so the file itself never needs 
 | `MAX_WINDOW` | `30m` default; raise it only for years of history | `30m` |
 | `SEED_EPOCH_MS` | optional; computed from the database by default | not applicable |
 
+## Before phase 1: the namespace prefix map
+
+A repository that has been running on Solr 6 for years usually has custom content models
+deployed. Solr resolved namespace prefixes through the repository. The batch indexer reads the
+database directly and resolves them through a static JSON file instead, and any namespace missing
+from that file is indexed silently and incompletely: a node whose own type comes from your model
+is not indexed at all. Full explanation in
+[../docs/custom-content-models.md](../docs/custom-content-models.md).
+
+Do this before the first `docker compose up`. History is walked once, in ascending commit time,
+so nodes the catch-up already passed are not revisited when you correct the file later. Getting it
+wrong means reseeding the cursor and processing the whole history again.
+
+With no custom model in the repository, nothing here is needed and the stack runs as it is.
+
+1. Download the addon JAR and mount it into the `alfresco` service, appending to the `volumes`
+   list it already has for `alf-data`, as described in
+   [../docs/custom-content-models.md](../docs/custom-content-models.md).
+
+2. Start the repository on its own, so the dictionary is available while the indexer is still
+   held back, and fetch the map once it reports ready:
+
+   ```bash
+   docker compose up -d alfresco
+   docker compose ps alfresco          # wait for healthy
+   mkdir -p config
+   ../tools/fetch-prefix-map.sh > config/prefixes.json
+   ```
+
+3. Point the indexer at the file, in `compose.yaml`:
+
+   ```yaml
+     batch-indexer:
+       environment:
+         JAVA_OPTS: -Dalfresco.reindex.prefixes-file=file:/config/prefixes.json
+       volumes:
+         - ./config/prefixes.json:/config/prefixes.json:ro
+   ```
+
+Then start phase 1 as below. The cursor seeding and the indexer come up in order, with the map
+already in place.
+
 ## Phase 1: Solr and OpenSearch side by side
 
 The repository already searches through OpenSearch, but Solr keeps indexing as changes
@@ -70,6 +112,14 @@ curl -s -u admin:admin -X POST \
 
 Do not move to phase 2 until the cursor has reached the present, search results look correct,
 and the dead-letter index (`alfresco-reindex-dead-letter`) is not accumulating failures.
+
+If the repository has custom content models, check the other silent failure too. `filterCount`
+has to be `0` and there must be no `impossible to` lines, which is what an incomplete prefix map
+produces:
+
+```bash
+docker compose logs batch-indexer | grep -e "impossible to" -e "Job metrics"
+```
 
 ## Phase 2: stop Solr and put OpenSearch into steady state
 

@@ -12,8 +12,8 @@ tools/addons/
 full-stack/alfresco/modules/jars/*.jar
 full-stack/alfresco/modules/amps/*.amp
 
-# Left over from older revisions that bind-mounted state and logs. Nothing writes here now:
-# stateful data lives in named volumes and logs go to stdout.
+# Nothing writes here: stateful data lives in named volumes and logs go to stdout. Ignored so a
+# stray bind mount cannot end up committed.
 full-stack/data/
 full-stack/logs/
 
