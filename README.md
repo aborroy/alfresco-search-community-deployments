@@ -69,13 +69,36 @@ deployment directory. Bump a version once and all four follow.
 | Alfresco Search Services (Solr 6, migration only) | 2.0.21 |
 | PostgreSQL | 17.9 |
 
-If your platform does not support symlinks, pass the file explicitly instead:
+OpenSearch 3.x also works; see [docs/hxpr-coexistence.md](docs/hxpr-coexistence.md).
+
+## Platforms
+
+Every image used is published for both `linux/amd64` and `linux/arm64`, so architecture is not
+a constraint.
+
+**macOS and Linux:** the commands above work as written.
+
+**Windows:** clone into WSL2 and run from there. That is the only path these deployments are
+written for, and the reason is Git rather than Docker. Two Git for Windows defaults break a
+native clone:
+
+- Without symlink support, Git writes each deployment's `.env` as a text file containing the
+  literal string `../.env`, and `docker compose` then fails with
+  `unexpected character "/" in variable name`.
+- With `core.autocrlf=true`, shell scripts are rewritten to CRLF and
+  `minimal-tls/generate-certs.sh` fails immediately with `$'\r': command not found`.
+
+A [`.gitattributes`](.gitattributes) pins line endings to LF, which handles the second problem
+for fresh clones. For the first, either enable symlinks
+(`git clone -c core.symlinks=true`, which needs Developer Mode) or pass the shared file
+explicitly on every command:
 
 ```bash
 docker compose --env-file ../.env up -d
 ```
 
-OpenSearch 3.x also works; see [docs/hxpr-coexistence.md](docs/hxpr-coexistence.md).
+Both were confirmed by cloning with the Windows defaults; neither has been tested on Windows
+itself.
 
 ## Documentation
 

@@ -78,9 +78,11 @@ services:
       timeout: 3s
       retries: 3
       start_period: 1m
+    # Tomcat logs go to stdout only, for the same reason as PostgreSQL above: a bind-mounted
+    # log directory is created as root and Tomcat runs as a non-root user, which fails on
+    # Linux. Use `docker compose logs alfresco`.
     volumes:
       - alf-data:/usr/local/tomcat/alf_data
-      - ./logs/alfresco:/usr/local/tomcat/logs
 
   transform-core-aio:
     image: alfresco/alfresco-transform-core-aio:${TRANSFORM_TAG}
@@ -128,8 +130,6 @@ services:
     depends_on:
       alfresco:
         condition: service_healthy
-    volumes:
-      - ./logs/share:/usr/local/tomcat/logs
 
   postgres:
     image: postgres:${POSTGRES_TAG}
@@ -142,12 +142,14 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_DB=${DB_NAME}
       - PGUSER=${DB_USER}
+    # Logs go to stdout rather than to a collector writing into a bind-mounted directory.
+    # Docker creates a missing bind-mount source as root, and PostgreSQL runs as its own
+    # user, so on Linux it cannot write there and refuses to start. Use `docker compose logs
+    # postgres` instead.
     command: >-
       postgres
         -c max_connections=200
-        -c logging_collector=on
         -c log_min_messages=LOG
-        -c log_directory=/var/log/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
       interval: 10s
@@ -155,7 +157,6 @@ services:
       retries: 5
     volumes:
       - db-data:/var/lib/postgresql/data
-      - ./logs/postgres:/var/log/postgresql
 
   # --- The search tier: OpenSearch plus the batch indexer that populates it ---
 
@@ -250,11 +251,12 @@ services:
     ports:
       - ${BIND_IP:-0.0.0.0}:8080:8080
 
-# Stateful data lives in named volumes rather than bind mounts. Bind-mounting a database or
-# index directory fails on Docker Desktop, where host files are presented with the host
-# user's uid and the service inside the container runs as a different one, so PostgreSQL
-# rejects its data directory with "wrong ownership". Logs stay bind-mounted under ./logs so
-# they can be read from the host.
+# Stateful data lives in named volumes, and nothing is bind-mounted except read-only
+# configuration. Bind-mounting a directory a container must write to breaks on both major
+# platforms for the same underlying reason, a uid mismatch between host and container:
+# Docker Desktop presents host files with the host user's uid, so PostgreSQL rejects its data
+# directory with "wrong ownership", and on Linux Docker creates a missing bind-mount source
+# as root, which a non-root service cannot write to. Named volumes avoid both.
 volumes:
   db-data:
   alf-data:

@@ -74,14 +74,19 @@ docker compose down -v       # also removes volumes
 ```
 
 Repository content, the database and the index live in named volumes, so `docker compose down`
-keeps them and `down -v` discards them. Logs are bind-mounted under `./logs`, git-ignored, and
-readable directly from the host.
+keeps them and `down -v` discards them. Logs go to stdout; read them with
+`docker compose logs <service>`.
 
-Stateful directories are deliberately not bind-mounted. On Docker Desktop, host files are
-presented to the container with the host user's uid, while PostgreSQL and OpenSearch run as
-their own users inside the image, so a bind-mounted data directory is rejected outright
-(PostgreSQL fails with `data directory has wrong ownership`). Named volumes live inside the
-Docker VM and avoid the mismatch entirely.
+Nothing this stack writes to is bind-mounted, only read-only configuration. A bind mount a
+container must write into fails on both major platforms, for the same underlying uid mismatch:
+
+- On Docker Desktop, host files are presented with the host user's uid while the service runs
+  as its own user, so PostgreSQL rejects its data directory with
+  `data directory has wrong ownership`.
+- On Linux, Docker creates a missing bind-mount source as root, and a non-root service cannot
+  write there at all.
+
+Named volumes sidestep both, and stdout logging removes the need for a writable log directory.
 
 ## Adding your own extensions
 

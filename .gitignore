@@ -2,8 +2,9 @@
 # Recreate with minimal-tls/generate-certs.sh.
 minimal-tls/certs/
 
-# Logs written by the full-stack variant's bind mount. Its stateful data lives in named
-# volumes, not on the host.
+# Left over from older revisions that bind-mounted state and logs. Nothing writes here now:
+# stateful data lives in named volumes and logs go to stdout.
+full-stack/data/
 full-stack/logs/
 
 # The shared .env at the repository root IS tracked on purpose: it holds pinned image tags

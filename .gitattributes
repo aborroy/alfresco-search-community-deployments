@@ -1,0 +1,22 @@
+# Everything here is consumed by Linux containers, so it must keep LF endings regardless of
+# the platform it was cloned on. Git for Windows defaults to core.autocrlf=true, which would
+# otherwise rewrite these files to CRLF on checkout and break them:
+#
+#   generate-certs.sh  fails immediately with "$'\r': command not found"
+#   compose.yaml       the inline cursor-seed script carries CR into `sh -c` in the container
+#
+* text=auto eol=lf
+
+*.sh    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.conf  text eol=lf
+*.xml   text eol=lf
+*.md    text eol=lf
+.env    text eol=lf
+
+# Binary or generated, never touch.
+*.pem     binary
+*.jks     binary
+*.jar     binary
+*.png     binary
