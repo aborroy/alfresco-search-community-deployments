@@ -2,9 +2,15 @@
 # Recreate with minimal-tls/generate-certs.sh.
 minimal-tls/certs/
 
-# Namespace prefix maps built by tools/build-prefix-map.sh. They are extracted from the indexer
-# image, so they are Alfresco's resource rather than this repository's.
+# Namespace prefix maps fetched by tools/fetch-prefix-map.sh. They describe one repository's
+# dictionary, so they belong to that installation rather than to this repository.
 */config/prefixes.json
+
+# Third-party addon JARs downloaded by hand, and whatever is dropped into the full-stack
+# extension directories. Nothing is vendored here.
+tools/addons/
+full-stack/alfresco/modules/jars/*.jar
+full-stack/alfresco/modules/amps/*.amp
 
 # Left over from older revisions that bind-mounted state and logs. Nothing writes here now:
 # stateful data lives in named volumes and logs go to stdout.

@@ -24,7 +24,7 @@ successfully with 15.6 GiB allocated to Docker.
 Only `full-stack` is the complete platform. The other three deliberately omit the UI layer to
 keep the search configuration in the foreground.
 
-`tools/` is not a deployment. It holds `build-prefix-map.sh`, needed only if you deploy a custom
+`tools/` is not a deployment. It holds `fetch-prefix-map.sh`, needed only if you deploy a custom
 content model on top of one of these stacks; see
 [docs/custom-content-models.md](docs/custom-content-models.md).
 
