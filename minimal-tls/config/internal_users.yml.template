@@ -1,0 +1,11 @@
+---
+_meta:
+  type: "internalusers"
+  config_version: 2
+
+admin:
+  hash: "__ADMIN_HASH__"
+  reserved: true
+  backend_roles:
+    - "admin"
+  description: "Demo admin user, credentials in ../.env"

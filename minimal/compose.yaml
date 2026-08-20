@@ -1,0 +1,103 @@
+# Minimal Alfresco Community 26.2 stack with Alfresco Search Community.
+#
+# No image builds, no persistent volumes, no UI layer: just enough to show the two
+# services that make up the new search tier, OpenSearch and the batch indexer.
+#
+# Tags come from ../.env (symlinked as ./.env). See README.md.
+
+services:
+
+  postgres:
+    image: postgres:${POSTGRES_TAG}
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  transform-core-aio:
+    image: alfresco/alfresco-transform-core-aio:${TRANSFORM_TAG}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  alfresco:
+    image: alfresco/alfresco-content-repository-community:${ALFRESCO_TAG}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      transform-core-aio:
+        condition: service_healthy
+    environment:
+      # Product defaults for the metadata keystore, not secrets to protect.
+      JAVA_TOOL_OPTIONS: >-
+        -Dencryption.keystore.type=JCEKS
+        -Dencryption.cipherAlgorithm=DESede/CBC/PKCS5Padding
+        -Dencryption.keyAlgorithm=DESede
+        -Dencryption.keystore.location=/usr/local/tomcat/shared/classes/alfresco/extension/keystore/keystore
+        -Dmetadata-keystore.password=mp6yc0UD9e
+        -Dmetadata-keystore.aliases=metadata
+        -Dmetadata-keystore.metadata.password=oKIWzVdEdA
+        -Dmetadata-keystore.metadata.algorithm=DESede
+      JAVA_OPTS: >-
+        -Ddb.driver=org.postgresql.Driver
+        -Ddb.username=${DB_USER}
+        -Ddb.password=${DB_PASSWORD}
+        -Ddb.url=jdbc:postgresql://postgres:5432/${DB_NAME}
+        -Dsolr.secureComms=secret
+        -Dsolr.sharedSecret=${SHARED_SECRET}
+        -Dindex.subsystem.name=elasticsearch
+        -Delasticsearch.host=opensearch
+        -Delasticsearch.port=9200
+        -Delasticsearch.createIndexIfNotExists=true
+        -DlocalTransform.core-aio.url=http://transform-core-aio:8090/
+        -Dcsrf.filter.enabled=false
+        -Dalfresco.restApi.basicAuthScheme=true
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/alfresco/api/-default-/public/alfresco/versions/1/probes/-ready-"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 1m
+
+  # --- The search tier: OpenSearch plus the batch indexer that populates it ---
+
+  opensearch:
+    image: opensearchproject/opensearch:${OPENSEARCH_TAG}
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 1m
+
+  batch-indexer:
+    image: alfresco/alfresco-elasticsearch-batch-indexing:${BATCH_INDEXER_TAG}
+    depends_on:
+      alfresco:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_ELASTICSEARCH_REST_URIS: http://opensearch:9200
+      ALFRESCO_ACS_URL: http://alfresco:8080
+      ALFRESCO_ACCEPTEDCONTENTMEDIATYPESCACHE_BASEURL: http://transform-core-aio:8090/transform/config
+      ALFRESCO_CONTENT_TRANSFORM_SHAREDSECRET: ${SHARED_SECRET}
+      ALFRESCO_REINDEX_CONTINUOUS_POLLINGINTERVAL: 15s

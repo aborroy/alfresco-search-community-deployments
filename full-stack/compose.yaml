@@ -1,0 +1,251 @@
+# Full Alfresco Community 26.2 stack with Alfresco Search Community.
+#
+# This is the complete deployment: repository, Share, Content App, api-explorer, transform
+# engine, PostgreSQL, an nginx reverse proxy fronting everything on port 8080, and
+# OpenSearch with the batch indexer plus OpenSearch Dashboards.
+#
+# Layout follows the output of alfresco-docker-installer --searchType=opensearch, so the
+# repository and Share images are built locally to allow AMPs and JARs to be layered in.
+#
+# Tags come from ../.env (symlinked as ./.env). See README.md.
+
+services:
+
+  alfresco:
+    build:
+      context: ./alfresco
+      args:
+        ALFRESCO_TAG: ${ALFRESCO_TAG}
+        DB: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 5952m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Product defaults for the metadata keystore, not secrets to protect.
+      JAVA_TOOL_OPTIONS: >-
+        -Dencryption.keystore.type=JCEKS
+        -Dencryption.cipherAlgorithm=DESede/CBC/PKCS5Padding
+        -Dencryption.keyAlgorithm=DESede
+        -Dencryption.keystore.location=/usr/local/tomcat/shared/classes/alfresco/extension/keystore/keystore
+        -Dmetadata-keystore.password=mp6yc0UD9e
+        -Dmetadata-keystore.aliases=metadata
+        -Dmetadata-keystore.metadata.password=oKIWzVdEdA
+        -Dmetadata-keystore.metadata.algorithm=DESede
+      JAVA_OPTS: >-
+        -Ddb.username=${DB_USER}
+        -Ddb.password=${DB_PASSWORD}
+        -Ddb.driver=org.postgresql.Driver
+        -Ddb.url=jdbc:postgresql://postgres:5432/${DB_NAME}
+        -Dsolr.secureComms=secret
+        -Dsolr.sharedSecret=${SHARED_SECRET}
+        -Dindex.subsystem.name=elasticsearch
+        -Delasticsearch.host=opensearch
+        -Delasticsearch.port=9200
+        -Delasticsearch.createIndexIfNotExists=true
+        -Dalfresco.host=${SERVER_NAME}
+        -Dalfresco.port=8080
+        -Dapi-explorer.url=http://${SERVER_NAME}:8080/api-explorer
+        -Dalfresco.protocol=http
+        -Dshare.host=${SERVER_NAME}
+        -Dshare.port=8080
+        -Dshare.protocol=http
+        -Daos.baseUrlOverwrite=http://${SERVER_NAME}/alfresco/aos
+        -Dmessaging.subsystem.autoStart=false
+        -Drepo.event2.enabled=false
+        -Ddeployment.method=DOCKER_COMPOSE
+        -Dopencmis.server.override=true
+        -Dopencmis.server.value=http://${SERVER_NAME}:8080
+        -DlocalTransform.core-aio.url=http://transform-core-aio:8090/
+        -Dhttpclient.config.transform.connectionRequestTimeout=500000
+        -Dcsrf.filter.enabled=false
+        -Dalfresco.restApi.basicAuthScheme=true
+        -Dauthentication.protection.enabled=false
+        -Dgoogledocs.enabled=false
+        -Ddev.email.not.sent=true
+        -XX:+UseG1GC -XX:+UseStringDeduplication
+        -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8080/alfresco/api/-default-/public/alfresco/versions/1/probes/-ready-
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 1m
+    volumes:
+      - ./data/alf-repo-data:/usr/local/tomcat/alf_data
+      - ./logs/alfresco:/usr/local/tomcat/logs
+
+  transform-core-aio:
+    image: alfresco/alfresco-transform-core-aio:${TRANSFORM_TAG}
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 2048m
+    environment:
+      JAVA_OPTS: >-
+        -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
+        -Dserver.tomcat.threads.max=12
+        -Dserver.tomcat.threads.min=4
+        -Dlogging.level.org.alfresco.transform.common.TransformerDebug=ERROR
+        -Dlogging.level.org.alfresco.transform=ERROR
+        -Dlogging.level.org.apache.fontbox.ttf=ERROR
+        -Dlogging.level.org.apache.pdfbox.cos.COSDocument=ERROR
+        -Dlogging.level.org.apache.pdfbox.pdfparser=ERROR
+        -Dlogging.level.org.apache.pdfbox.filter.FlateFilter=ERROR
+        -Dlogging.level.org.apache.pdfbox.pdmodel.font=ERROR
+        -Dlogging.level.org.apache.pdfbox.pdmodel.font.PDSimpleFont=FATAL
+        -Dlogging.level.org.apache.pdfbox.pdmodel.font.PDFont=FATAL
+        -Dlogging.level.org.apache.pdfbox.pdmodel.font.PDCIDFont=FATAL
+
+  share:
+    build:
+      context: ./share
+      args:
+        SHARE_TAG: ${SHARE_TAG}
+        SERVER_NAME: ${SERVER_NAME}
+        HTTP_PORT: 8080
+    deploy:
+      resources:
+        limits:
+          memory: 1488m
+    environment:
+      REPO_HOST: "alfresco"
+      REPO_PORT: "8080"
+      CSRF_FILTER_REFERER: "http://localhost:8080/.*"
+      CSRF_FILTER_ORIGIN: "http://localhost:8080"
+      JAVA_OPTS: >-
+        -Dalfresco.context=alfresco
+        -Dalfresco.protocol=http
+        -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
+    depends_on:
+      alfresco:
+        condition: service_healthy
+    volumes:
+      - ./logs/share:/usr/local/tomcat/logs
+
+  postgres:
+    image: postgres:${POSTGRES_TAG}
+    deploy:
+      resources:
+        limits:
+          memory: 1488m
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_NAME}
+      - PGUSER=${DB_USER}
+    command: >-
+      postgres
+        -c max_connections=200
+        -c logging_collector=on
+        -c log_min_messages=LOG
+        -c log_directory=/var/log/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./data/postgres-data:/var/lib/postgresql/data
+      - ./logs/postgres:/var/log/postgresql
+
+  # --- The search tier: OpenSearch plus the batch indexer that populates it ---
+
+  opensearch:
+    image: opensearchproject/opensearch:${OPENSEARCH_TAG}
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 1m
+    volumes:
+      - ./data/opensearch-data:/usr/share/opensearch/data
+
+  batch-indexer:
+    image: alfresco/alfresco-elasticsearch-batch-indexing:${BATCH_INDEXER_TAG}
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    environment:
+      SPRING_ELASTICSEARCH_REST_URIS: http://opensearch:9200
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      ALFRESCO_ACCEPTEDCONTENTMEDIATYPESCACHE_BASEURL: http://transform-core-aio:8090/transform/config
+      ALFRESCO_ACS_URL: http://alfresco:8080
+      ALFRESCO_CONTENT_TRANSFORM_SHAREDSECRET: ${SHARED_SECRET}
+      ALFRESCO_REINDEX_CONTINUOUS_POLLINGINTERVAL: 15s
+      ALFRESCO_REINDEX_CONTINUOUS_CATCHUPPOLLINGINTERVAL: 1s
+      ALFRESCO_REINDEX_CONTINUOUS_MAXWINDOW: 30m
+      ALFRESCO_REINDEX_CONTINUOUS_OVERLAP: 10m
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      alfresco:
+        condition: service_healthy
+      transform-core-aio:
+        condition: service_started
+
+  # Web UI to explore the OpenSearch indexes created by the batch indexer.
+  # Exposed directly on port 5601, not routed through the proxy.
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:${OPENSEARCH_DASHBOARDS_TAG}
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    ports:
+      - ${BIND_IP:-0.0.0.0}:5601:5601
+
+  content-app:
+    image: alfresco/alfresco-content-app:${ACA_TAG}
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    environment:
+      APP_BASE_SHARE_URL: "http://${SERVER_NAME}:8080/#/preview/s"
+      APP_CONFIG_PLUGIN_PROCESS_SERVICE: false
+    depends_on:
+      alfresco:
+        condition: service_healthy
+
+  # HTTP proxy giving every service a single entry point on port 8080.
+  # The Solr API and web console paths are blocked to prevent unauthenticated access.
+  proxy:
+    image: nginx:${NGINX_TAG}
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    depends_on:
+      - alfresco
+      - share
+      - content-app
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - ${BIND_IP:-0.0.0.0}:8080:8080

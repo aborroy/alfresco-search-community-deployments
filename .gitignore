@@ -1,0 +1,20 @@
+# Generated demo PKI. Never commit private keys, not even throwaway ones.
+# Recreate with minimal-tls/generate-certs.sh.
+minimal-tls/certs/
+
+# Runtime state written by the full-stack variant's bind mounts.
+full-stack/data/
+full-stack/logs/
+
+# The shared .env at the repository root IS tracked on purpose: it holds pinned image tags
+# and clearly-labelled demo credentials, nothing sensitive. Local overrides are not.
+.env.local
+*.env.local
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/

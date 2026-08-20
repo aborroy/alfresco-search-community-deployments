@@ -1,0 +1,31 @@
+# Security plugin settings appended to the image's opensearch.yml at container start.
+
+plugins.security.ssl.transport.pemcert_filepath: opensearch.pem
+plugins.security.ssl.transport.pemkey_filepath: opensearch-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: root-ca.pem
+plugins.security.ssl.transport.enforce_hostname_verification: false
+
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: opensearch.pem
+plugins.security.ssl.http.pemkey_filepath: opensearch-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: root-ca.pem
+
+# Restricts the HTTP endpoint to TLS 1.3 as the only accepted version. Standard TLS 1.3,
+# with the default key exchange and signature algorithms of the underlying JDK: no
+# post-quantum key exchange is involved.
+plugins.security.ssl.http.enabled_protocols:
+  - TLSv1.3
+
+plugins.security.allow_unsafe_democertificates: false
+plugins.security.allow_default_init_securityindex: true
+
+plugins.security.authcz.admin_dn:
+  - CN=admin
+
+plugins.security.nodes_dn:
+  - CN=opensearch
+
+plugins.security.audit.type: internal_opensearch
+plugins.security.enable_snapshot_restore_privilege: true
+plugins.security.check_snapshot_restore_write_privileges: true
+plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
