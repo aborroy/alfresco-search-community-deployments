@@ -26,9 +26,11 @@ mapping does not exist. It resolves it through a static JSON file instead:
 The file the image ships lists 60 namespaces, all of them Alfresco's own. Yours is not among
 them.
 
-This is specific to the Community indexing path. Alfresco Search Enterprise live indexing
-consumes repository events, and the repository has already resolved every prefix before it emits
-one, so an Enterprise deployment never configures this file.
+This is a property of reading the database rather than of Community. Alfresco Search Enterprise
+live indexing consumes repository events, and the repository has already resolved every prefix
+before it emits one, so live indexing needs no file. Enterprise reindexing, the pass that has to
+populate the index before live indexing takes over, reads nodes over JDBC exactly as the batch
+indexer does and configures the same property.
 
 ## What an unconfigured namespace costs
 
