@@ -95,6 +95,12 @@ first real transaction, so catch-up time is proportional to the history that act
 For genuinely long histories, raise `maxWindow` to `7d` or more instead of lowering the poll
 interval.
 
+The cost is measurable. On a demo repository whose real history is minutes long, seeding at the
+first transaction reaches the present in about a minute with the default `30m` window. Seeding
+`2020-01-01` on the same repository takes roughly seven minutes even with `maxWindow=7d`,
+advancing about 60 days of empty calendar per 10 seconds, and indexes exactly the same
+documents at the end.
+
 Seed with `_create` rather than `PUT`, so re-running the seeding step cannot restart a
 migration already in progress.
 

@@ -24,6 +24,11 @@ against `opensearchproject/opensearch:3.5.0` with no additional changes. That im
 `minimum_wire_compatibility_version: 2.19.0`. Using the same image tag in the Alfresco compose
 file instead of the 2.x default is sufficient.
 
+The check was run with the [`minimal`](../minimal/) deployment and `OPENSEARCH_TAG=3.5.0`: the
+repository created the `alfresco` index and its mappings, the indexer populated it to the same
+document count as on 2.19.6, full-text search through the repository returned the expected
+result, and the indexer logged no errors.
+
 ## Requirement 2: the security plugin
 
 hxpr deploys OpenSearch with the security plugin disabled **at plugin level**, not merely

@@ -9,12 +9,17 @@ with `minimal` to read the configuration, `full-stack` to get a platform you can
 
 ## The deployments
 
-| Deployment | What it answers | Services | Search security | Persistence | Memory |
+| Deployment | What it answers | Services | Search security | Persistence | Allocate |
 | --- | --- | --- | --- | --- | --- |
-| [`minimal`](minimal/) | What does Alfresco Search Community actually need? | Repository, DB, transform, OpenSearch, indexer | Plugin disabled | None | ~6 GB |
-| [`minimal-tls`](minimal-tls/) | What changes when the search backend requires TLS? | Same as `minimal` | Plugin enabled, TLS 1.3 only | None | ~7 GB |
-| [`full-stack`](full-stack/) | How do I run the whole platform? | Adds Share, Content App, api-explorer, nginx, Dashboards | Plugin disabled | Named volumes | ~14 GB |
-| [`solr-to-opensearch-migration`](solr-to-opensearch-migration/) | How do I migrate off Solr 6 without losing rollback? | Adds Solr 6 alongside, plus cursor seeding | Plugin disabled | Named volumes | ~8 GB |
+| [`minimal`](minimal/) | What does Alfresco Search Community actually need? | Repository, DB, transform, OpenSearch, indexer | Plugin disabled | None | 6 GB |
+| [`minimal-tls`](minimal-tls/) | What changes when the search backend requires TLS? | Same as `minimal` | Plugin enabled, TLS 1.3 only | None | 6 GB |
+| [`full-stack`](full-stack/) | How do I run the whole platform? | Adds Share, Content App, api-explorer, nginx, Dashboards | Plugin disabled | Named volumes | 14 GB |
+| [`solr-to-opensearch-migration`](solr-to-opensearch-migration/) | How do I migrate off Solr 6 without losing rollback? | Adds Solr 6 alongside, plus cursor seeding | Plugin disabled | Named volumes | 8 GB |
+
+The "allocate" column is what to give Docker, not what the containers consume. Measured
+steady-state usage after indexing is 3.6 GiB for `minimal` and 5.3 GiB for the migration
+deployment. `full-stack` declares container limits summing to roughly 14 GB and has been run
+successfully with 15.6 GiB allocated to Docker.
 
 Only `full-stack` is the complete platform. The other three deliberately omit the UI layer to
 keep the search configuration in the foreground.
