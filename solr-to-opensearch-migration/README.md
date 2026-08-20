@@ -60,7 +60,9 @@ curl -s "http://localhost:9200/alfresco/_count"
 curl -s -H "X-Alfresco-Search-Secret: demosecret" \
   "http://localhost:8083/solr/admin/cores?action=SUMMARY&wt=json"
 
-# Search through the repository, which already answers via OpenSearch
+# Search through the repository, which already answers via OpenSearch.
+# Replace the term with something you know exists in your repository: on a repository
+# with no content of its own this correctly returns zero hits.
 curl -s -u admin:admin -X POST \
   "http://localhost:8080/alfresco/api/-default-/public/search/versions/1/search" \
   -H 'Content-Type: application/json' -d '{"query":{"language":"afts","query":"budget"}}'

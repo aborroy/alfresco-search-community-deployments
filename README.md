@@ -27,7 +27,8 @@ cd alfresco-search-community-deployments/minimal
 docker compose up -d
 ```
 
-Then open http://localhost:8080/alfresco (`admin` / `admin`) and watch the index fill:
+Then open http://localhost:8080/alfresco (`admin` / `admin`) and watch the `alfresco` index
+appear and fill:
 
 ```bash
 curl -s "http://localhost:9200/_cat/indices?v"

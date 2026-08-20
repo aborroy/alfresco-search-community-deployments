@@ -42,14 +42,29 @@ curl -s "http://localhost:9200/_cat/indices?v"
 docker compose logs -f batch-indexer
 ```
 
-Then search through the repository, which now answers via OpenSearch:
+A fresh repository has almost nothing to find, so upload something first:
+
+```bash
+printf 'zanzibar quokka manifest' > /tmp/probe.txt
+
+curl -s -u admin:admin -X POST \
+  "http://localhost:8080/alfresco/api/-default-/public/alfresco/versions/1/nodes/-my-/children" \
+  -F filedata=@/tmp/probe.txt -F name=probe.txt
+```
+
+Wait for the indexer to pick it up, then search through the repository, which now answers via
+OpenSearch:
 
 ```bash
 curl -s -u admin:admin -X POST \
   "http://localhost:8080/alfresco/api/-default-/public/search/versions/1/search" \
   -H 'Content-Type: application/json' \
-  -d '{"query":{"language":"afts","query":"budget"}}'
+  -d '{"query":{"language":"afts","query":"quokka"}}'
 ```
+
+`quokka` appears only inside the file, never in its name, so a hit proves the full path is
+working: the indexer extracted the text through the repository's guarded endpoint, wrote it to
+OpenSearch, and the repository queried it back.
 
 ## Stop
 
