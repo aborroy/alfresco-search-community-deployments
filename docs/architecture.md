@@ -118,7 +118,13 @@ repository refuses to start with `CONTENT INTEGRITY ERROR`.
 
 `minimal` and `minimal-tls` skip volumes deliberately: they are meant to be thrown away, and
 every start is a clean one. `solr-to-opensearch-migration` needs them because phase 2 recreates
-the Alfresco container. `full-stack` uses bind mounts under `./data` so the state is visible.
+the Alfresco container. `full-stack` uses them because it is meant to be kept.
+
+Use named volumes rather than bind mounts for database and index directories. On Docker
+Desktop, bind-mounted host files carry the host user's uid while the service runs as a
+different user inside the image, and PostgreSQL refuses to start on a data directory it does
+not own (`data directory has wrong ownership`). Bind mounts remain fine for logs and for
+read-only configuration.
 
 ## Hardening checklist
 

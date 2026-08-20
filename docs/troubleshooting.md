@@ -56,7 +56,12 @@ Start clean:
 docker compose down -v
 ```
 
-For deployments using bind mounts (`full-stack`), also delete `./data`.
+## PostgreSQL exits with "data directory has wrong ownership"
+
+The database directory is bind-mounted from the host. On Docker Desktop the host files carry
+the host user's uid, PostgreSQL runs as its own user inside the image, and it refuses to start
+on a directory it does not own. Use a named volume for the data directory instead, as all four
+deployments here now do. Bind mounts stay fine for logs and read-only configuration.
 
 ## Catch-up never seems to finish
 

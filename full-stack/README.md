@@ -73,9 +73,15 @@ docker compose down          # keeps data
 docker compose down -v       # also removes volumes
 ```
 
-Repository content, database, index and logs are bind-mounted under `./data` and `./logs`,
-both git-ignored. `docker compose down` leaves them in place. To start genuinely clean, delete
-those directories as well.
+Repository content, the database and the index live in named volumes, so `docker compose down`
+keeps them and `down -v` discards them. Logs are bind-mounted under `./logs`, git-ignored, and
+readable directly from the host.
+
+Stateful directories are deliberately not bind-mounted. On Docker Desktop, host files are
+presented to the container with the host user's uid, while PostgreSQL and OpenSearch run as
+their own users inside the image, so a bind-mounted data directory is rejected outright
+(PostgreSQL fails with `data directory has wrong ownership`). Named volumes live inside the
+Docker VM and avoid the mismatch entirely.
 
 ## Adding your own extensions
 

@@ -79,7 +79,7 @@ services:
       retries: 3
       start_period: 1m
     volumes:
-      - ./data/alf-repo-data:/usr/local/tomcat/alf_data
+      - alf-data:/usr/local/tomcat/alf_data
       - ./logs/alfresco:/usr/local/tomcat/logs
 
   transform-core-aio:
@@ -154,7 +154,7 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - ./data/postgres-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
       - ./logs/postgres:/var/log/postgresql
 
   # --- The search tier: OpenSearch plus the batch indexer that populates it ---
@@ -175,7 +175,7 @@ services:
       retries: 5
       start_period: 1m
     volumes:
-      - ./data/opensearch-data:/usr/share/opensearch/data
+      - opensearch-data:/usr/share/opensearch/data
 
   batch-indexer:
     image: alfresco/alfresco-elasticsearch-batch-indexing:${BATCH_INDEXER_TAG}
@@ -249,3 +249,13 @@ services:
       - ./config/nginx.conf:/etc/nginx/nginx.conf
     ports:
       - ${BIND_IP:-0.0.0.0}:8080:8080
+
+# Stateful data lives in named volumes rather than bind mounts. Bind-mounting a database or
+# index directory fails on Docker Desktop, where host files are presented with the host
+# user's uid and the service inside the container runs as a different one, so PostgreSQL
+# rejects its data directory with "wrong ownership". Logs stay bind-mounted under ./logs so
+# they can be read from the host.
+volumes:
+  db-data:
+  alf-data:
+  opensearch-data:
