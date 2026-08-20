@@ -83,6 +83,31 @@ waiting:
 MAX_WINDOW=7d docker compose up -d --no-deps batch-indexer
 ```
 
+## Nodes using a custom content model are missing or incomplete
+
+Only with a content model of your own deployed. Two shapes, both silent:
+
+- Nodes whose **type** comes from your model are absent from the index entirely, and the
+  dead-letter index is empty.
+- Nodes that merely **carry** one of your aspects are present, but without the aspect's
+  properties and without the aspect in their `ASPECT` field.
+
+The indexer cannot map your namespace URI to its prefix. Look for this in its log:
+
+```bash
+docker compose logs batch-indexer | grep "impossible to"
+```
+
+The fix is a complete prefix map, built from the one the image ships. See
+[custom-content-models.md](custom-content-models.md).
+
+## The indexer fails on validateDbSchemaStep with "Cannot parse null string"
+
+The prefix map it loaded is missing Alfresco's own namespaces, so it cannot read the repository
+descriptor. This happens when `alfresco.reindex.prefixes-file` points at a hand-written file
+holding only custom namespaces: the file replaces the shipped map rather than extending it.
+Build it with `tools/build-prefix-map.sh` and the shipped 60 namespaces are kept.
+
 ## Documents are failing rather than indexing
 
 Failures accumulate in a dead-letter index:

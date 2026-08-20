@@ -16,6 +16,13 @@ This differs from Solr 6, where the search service pulled from the repository's 
 and no separate indexer existed. Two consequences follow. The indexer needs its own database
 credentials, and it needs to reach both the repository and the transform engine.
 
+Reading nodes from the database has a third consequence that only shows up with a custom
+content model. The database holds a property's namespace URI, not its prefix, while index field
+names are built from the prefixed name, so the indexer resolves URI to prefix through a static
+file that lists Alfresco's namespaces and no others. A model in an unlisted namespace is
+indexed incompletely or not at all, silently. See
+[custom-content-models.md](custom-content-models.md).
+
 ```mermaid
 flowchart LR
     User[Client] -->|Search API| Repo[Alfresco repository]

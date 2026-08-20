@@ -24,6 +24,10 @@ successfully with 15.6 GiB allocated to Docker.
 Only `full-stack` is the complete platform. The other three deliberately omit the UI layer to
 keep the search configuration in the foreground.
 
+`tools/` is not a deployment. It holds `build-prefix-map.sh`, needed only if you deploy a custom
+content model on top of one of these stacks; see
+[docs/custom-content-models.md](docs/custom-content-models.md).
+
 ## Quick start
 
 ```bash
@@ -104,6 +108,8 @@ itself.
 
 - [docs/architecture.md](docs/architecture.md): how the search tier works, the indexing
   cursor, and the configuration properties that matter
+- [docs/custom-content-models.md](docs/custom-content-models.md): the one piece of indexer
+  configuration a custom model needs, and what happens without it
 - [docs/troubleshooting.md](docs/troubleshooting.md): symptoms and causes
 - [docs/hxpr-coexistence.md](docs/hxpr-coexistence.md): sharing an OpenSearch cluster with
   hxpr and Content Lake App
