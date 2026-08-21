@@ -35,6 +35,84 @@ flowchart LR
     Repo --> Transform
 ```
 
+## Indexes in the cluster
+
+Four index names are configured across the two services. Three of them are real:
+
+| Index | Default name | Created by | Purpose |
+| --- | --- | --- | --- |
+| Main | `alfresco` | Repository, at startup | The searchable documents. Queried by Content Services. |
+| State | `alfresco-reindex-state` | Indexer | The indexing cursor. Hidden. |
+| Dead letter | `alfresco-reindex-dead-letter` | Indexer | Documents that failed to index. |
+| Archive | `alfresco-archive` | Nothing | Nominally deleted nodes. Does not work, see below. |
+
+The state index is hidden, so a plain listing leaves it out. Ask for hidden indexes to see all of
+them:
+
+```bash
+curl -s "http://localhost:9200/_cat/indices?v&expand_wildcards=all"
+```
+
+### The archive index does not work. Do not use it
+
+`elasticsearch.archive.indexName`, default `alfresco-archive`, is documented as the index used for
+deleted (archived) nodes, which makes it look like an available option. It is not one.
+
+Deleting a node in Alfresco does not erase it. The node moves from `workspace://SpacesStore` to
+`archive://SpacesStore`, the store behind the trashcan, and the repository picks an index from the
+store protocol of the request: `workspace` resolves to `elasticsearch.indexName`, `archive` to
+`elasticsearch.archive.indexName`, and any other protocol throws
+(`SearchRequestBuilderService.getElasticIndex()`). Through the v1 Search API you would reach the
+second one by scoping a request to `deleted-nodes`.
+
+That routing is all there is. **Nothing creates the archive index and nothing writes to it.** Three
+separate parts of the product agree:
+
+- The repository never writes to OpenSearch at all. Its indexer bean is a no-op
+  (`ElasticsearchSearchServiceFactory.getIndexer()` returns `NoActionIndexer`, on the grounds that
+  an external service does the indexing).
+- `elasticsearch.createIndexIfNotExists` only ever covers the main index. `ElasticsearchInitialiser`
+  and `ContentModelSynchronizer` work on `indexName` and never on the archive name.
+- The batch indexer has no notion of it. Its image contains no reference to `alfresco-archive`, to
+  `archive.indexName`, or to the archive store, only to the three indexes above.
+
+So the property is a route to an index that no component provides, and a search scoped to
+`deleted-nodes` fails rather than returning nothing. Nothing sets `ignore_unavailable`, and the
+repository rethrows any search error that is not a highlighting error:
+
+```
+HTTP 500  Request failed: [index_not_found_exception] no such index [alfresco-archive]
+```
+
+**Do not try to fix this by creating the index by hand.** It would make the same request return
+HTTP 200 with zero results, and that is worse than the error. An empty result set is
+indistinguishable from "no deleted nodes matched", so a caller cannot tell a missing feature from a
+genuine absence of hits. Silent wrong answers are already this subsystem's characteristic failure
+mode, as the [Known limitation](#known-limitation) below describes. The 500 is the honest signal,
+and the correct response to it is to stop scoping searches to deleted nodes on this subsystem.
+
+None of these deployments creates the index, and none of them should.
+
+Two related facts, both verified on 26.2.0:
+
+- **Deletion is handled correctly on the main index.** A node moved to the trashcan is removed from
+  `alfresco` within one indexing cycle, so trashcan content does not linger in ordinary search
+  results. Nothing is leaking; the archive capability simply does not exist.
+- **Solr 6 did index deleted nodes.** It is configured with a second core for
+  `archive://SpacesStore` and populates it. Indexed access to deleted nodes is therefore a
+  capability lost in the move to Alfresco Search Community, not merely one that is unconfigured.
+  If anything in your deployment depends on it, settle that before migrating.
+
+### Store scopes that do not map to a store
+
+`scope.locations` also accepts `versions` and `history`, which the repository turns into
+`workspace://version2Store` and `workspace://history`. Index selection switches on the protocol
+alone and ignores the store identifier, so both resolve to the main `alfresco` index rather than
+to anything version- or history-specific. A request scoped to `versions` reports the whole main
+index in `totalItems` while returning no entries, because the results are filtered by store after
+the count is taken. This belongs to the same family as the silent drops in
+[Known limitation](#known-limitation) below.
+
 ## Selecting the subsystem
 
 The repository chooses its search engine with one property:

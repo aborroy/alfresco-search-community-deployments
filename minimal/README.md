@@ -96,4 +96,9 @@ There are no volumes, so this discards everything. That is deliberate for this v
   has to be in the map or its nodes are indexed incompletely, and silently. Generate one with
   `../tools/fetch-prefix-map.sh` and mount it, as described in
   [../docs/custom-content-models.md](../docs/custom-content-models.md).
+- Searching deleted nodes does not work, here or on any of these stacks. The repository routes that
+  scope to `alfresco-archive`, an index nothing in the product creates or fills, so the request
+  fails with `index_not_found_exception`. Do not create the index to silence it; that only converts
+  the error into an empty result that hides the missing feature. See
+  [../docs/architecture.md](../docs/architecture.md#the-archive-index-does-not-work-do-not-use-it).
 - For the same stack with TLS 1.3 enabled, see `../minimal-tls`.

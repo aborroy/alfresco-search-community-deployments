@@ -183,5 +183,25 @@ admin console, with nothing to rebuild.
   without a volume for `alf_data` the content disappears while the database still points at
   it, leaving a repository that will not even start (`CONTENT INTEGRITY ERROR`). To start
   clean: `docker compose down -v`.
+- **Deleted nodes are indexed by Solr and not by OpenSearch. This capability is lost.** Solr here
+  is created with two cores, `alfresco` and `archive`, and while tracking is on it indexes deleted
+  nodes into the second one. OpenSearch has no equivalent: the repository routes archive-store
+  queries to `alfresco-archive`, an index no component creates or fills, so that scope fails
+  outright and there is nothing to configure. Delete a node during phase 1 and compare the two:
+
+  ```bash
+  # Solr's archive core receives it: compare the node count of the two cores
+  curl -s -H "X-Alfresco-Search-Secret: demosecret" \
+    "http://localhost:8083/solr/admin/cores?action=SUMMARY&wt=json" \
+    | jq '.Summary | map_values({nodes: ."Alfresco Nodes in Index"})'
+
+  # No OpenSearch counterpart exists at all
+  curl -s "http://localhost:9200/alfresco-archive/_count"
+  ```
+
+  If anything depends on indexed access to deleted nodes, settle that before phase 2, while Solr is
+  still tracking and its archive core still holds the data. Creating `alfresco-archive` is not a
+  workaround: see
+  [../docs/architecture.md](../docs/architecture.md#the-archive-index-does-not-work-do-not-use-it).
 - This stack is a demo: no TLS, and OpenSearch security disabled. For the TLS 1.3 example see
   `../minimal-tls`.

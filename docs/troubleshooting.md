@@ -25,6 +25,33 @@ first start without cursor seeding. See
 docker compose logs -f batch-indexer
 ```
 
+## Searching the trashcan returns HTTP 500
+
+A search scoped to deleted nodes fails outright:
+
+```bash
+curl -s -u admin:admin -X POST \
+  "http://localhost:8080/alfresco/api/-default-/public/search/versions/1/search" \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"query":"*"},"scope":{"locations":["deleted-nodes"]}}'
+```
+
+```
+"briefSummary":"Request failed: [index_not_found_exception] no such index [alfresco-archive]"
+```
+
+Not a misconfiguration, and there is nothing to fix in the deployment. The repository routes
+archive-store queries to `elasticsearch.archive.indexName`, and no component of the product creates
+or fills that index: `elasticsearch.createIndexIfNotExists` covers only the main index, the
+repository has no write path to OpenSearch, and the batch indexer has no notion of the archive
+store.
+
+**The remedy is to stop issuing the query.** Searching deleted nodes is not available on this
+subsystem. Do not create `alfresco-archive` by hand to make the error go away: the request would
+then return HTTP 200 with zero results, which is indistinguishable from a genuine absence of
+matches and hides the missing feature instead of reporting it. See
+[architecture.md](architecture.md#the-archive-index-does-not-work-do-not-use-it).
+
 ## Metadata is indexed but content text is not
 
 Searches match on filenames and properties but never on words inside documents. The shared

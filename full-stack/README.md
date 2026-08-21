@@ -60,9 +60,15 @@ hostname or IP, since the repository builds absolute URLs from it.
 OpenSearch is not published on the host in this variant, so query it from inside the network:
 
 ```bash
-docker compose exec opensearch curl -s "http://localhost:9200/_cat/indices?v"
+docker compose exec opensearch curl -s "http://localhost:9200/_cat/indices?v&expand_wildcards=all"
 docker compose logs -f batch-indexer
 ```
+
+Three indexes should be listed: `alfresco`, `alfresco-reindex-state` (hidden, hence
+`expand_wildcards=all`) and `alfresco-reindex-dead-letter`. There is no fourth: the repository also
+configures `alfresco-archive` for searches scoped to deleted nodes, but nothing creates or fills it
+and that scope does not work. See
+[../docs/architecture.md](../docs/architecture.md#the-archive-index-does-not-work-do-not-use-it).
 
 Or use Dashboards on http://localhost:5601, which is what it is there for.
 

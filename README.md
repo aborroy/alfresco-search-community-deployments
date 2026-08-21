@@ -42,8 +42,14 @@ Then open http://localhost:8080/alfresco (`admin` / `admin`) and watch the `alfr
 appear and fill:
 
 ```bash
-curl -s "http://localhost:9200/_cat/indices?v"
+curl -s "http://localhost:9200/_cat/indices?v&expand_wildcards=all"
 ```
+
+Expect three indexes. The repository creates `alfresco` at startup, and the indexer creates
+`alfresco-reindex-state` (hidden, hence `expand_wildcards=all`) and
+`alfresco-reindex-dead-letter`. A fourth name, `alfresco-archive`, is configured by the repository
+but created by nothing and does not work; see
+[docs/architecture.md](docs/architecture.md#indexes-in-the-cluster).
 
 Each deployment has its own README with the details that matter for it. `minimal-tls`
 additionally requires running `./generate-certs.sh` before the first start.
