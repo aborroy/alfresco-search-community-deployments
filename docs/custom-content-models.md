@@ -9,6 +9,13 @@ Read this before deploying a model of your own on top of one of them, and read i
 `solr-to-opensearch-migration` at an existing repository, which usually has models already
 deployed.
 
+The silence is a product defect rather than a step you were expected to discover, and it is tracked
+as [ACS-12851](https://hyland.atlassian.net/browse/ACS-12851) in Alfresco's issue tracker, which
+needs a Hyland account to read. For any repository that already has a content model of its own,
+which is most repositories that have been in production, this is close to a blocker on adopting
+Alfresco Search Community: the index comes out incomplete and reports success. Everything below is
+the workaround, and it does work.
+
 ## Why the indexer needs help resolving namespaces
 
 The repository stores a property's identity as a namespace URI plus a local name. The prefix
@@ -33,6 +40,38 @@ live indexing consumes repository events, and the repository has already resolve
 before it emits one, so live indexing needs no file. Enterprise reindexing, the pass that has to
 populate the index before live indexing takes over, reads nodes over JDBC exactly as the batch
 indexer does and configures the same property.
+
+## What the repository does on its own
+
+The other half needs nothing from you, which is worth knowing because it is the half people expect
+to have to configure.
+
+Activating a model extends the index mapping immediately. The repository listens for dictionary
+reloads and re-runs its mapping synchronization under a cluster-wide lock, so setting
+`cm:modelActive` adds your properties to the `alfresco` index with no repository restart and no
+indexer running. Verified against Alfresco Content Services Community 26.2.0: a model with 5 custom
+properties added 9 mapped fields, counting the `_untokenized` variants, while no indexer container
+existed.
+
+So after deploying a model the schema is already correct and only the data is wrong. That is why the
+failure is silent rather than an error: nothing rejects the documents the indexer writes, they are
+simply missing the fields the mapping is waiting for.
+
+Two limits of that synchronization are worth knowing before you revise a model rather than add one:
+
+- It only ever adds. Deactivating or deleting a model does not remove its fields from the mapping,
+  and they keep counting against `elasticsearch.index.mapping.total_fields.limit`, which defaults to
+  7500 against roughly 950 fields on a stock install.
+- It skips properties it has already mapped. Changing an existing property's data type, `d:text` to
+  `d:date` for instance, is not sent to OpenSearch while the repository is up, and OpenSearch would
+  reject the change anyway. Treat a type change as a new index, not an edit.
+
+Nothing outside the repository can find out that a model changed. There is no model event on the
+repository event stream and no marker in the database. `POST /api/solr/modelsdiff` looks like the
+answer and is not: under the `elasticsearch` subsystem it always returns an empty diff list, because
+the tracking component it delegates to is disabled by default, and an empty list is
+indistinguishable from no change. Deploying a model and refreshing the prefix map is a deliberate
+sequence, not something that can be automated by watching the repository.
 
 ## What an unconfigured namespace costs
 
@@ -201,7 +240,25 @@ replaying the whole history.
 
 ## Verifying
 
-Create a node that uses the model and look for it in the index. Field names are URL-encoded, so
+Check the map itself first, since it is the cheapest of the three checks and the only one that does
+not need a node to exist. `tools/check-prefix-map.sh` asks the repository what it has deployed and
+compares that against the file, so it catches a namespace you forgot, a prefix that was edited by
+hand, and a file that lost Alfresco's own namespaces:
+
+```bash
+../tools/check-prefix-map.sh                    # checks ./config/prefixes.json
+../tools/check-prefix-map.sh path/to/file.json
+```
+
+It exits `0` when every namespace the repository knows is in the file with the same prefix, `1` on a
+namespace that is missing or mapped to a different prefix, and `2` when it could not run the check
+at all. That makes it usable in CI against a staging repository, and worth running before an
+upgrade. Namespaces present in the file and unknown to the repository are reported and do not fail
+the check, which is what you see if the file came from the indexer image.
+
+It reads the repository over HTTP and writes nothing, so it is safe to run against production.
+
+Then create a node that uses the model and look for it in the index. Field names are URL-encoded, so
 `hr:contractNumber` is `hr%3AcontractNumber`:
 
 ```bash
@@ -238,5 +295,8 @@ service in `solr-to-opensearch-migration/compose.yaml` is a working example.
 - It was fetched after the model was deployed, so the model's namespace is in it.
 - No entry was edited afterwards. A prefix that differs from the one the model declares indexes
   your data under field names no query will ask for, which fails as quietly as a missing entry.
+- `tools/check-prefix-map.sh` exits `0` against the running repository.
 - The indexer log has no `impossible to get prefixed name of` lines after a full cycle.
 - A node of each custom type is retrievable from the index by `TYPE`.
+
+The first three are checkable before any node exists, so run them while the indexer is still stopped.

@@ -44,7 +44,28 @@ With no custom model in the repository, nothing here is needed and the stack run
    ../tools/fetch-prefix-map.sh > config/prefixes.json
    ```
 
-3. Point the indexer at the file, in `compose.yaml`:
+3. Confirm the file on disk is a complete map, while the indexer is still stopped and nothing has
+   been indexed under a bad one yet:
+
+   ```bash
+   ../tools/check-prefix-map.sh
+   ```
+
+   It must exit `0`. A map fetched from this repository a moment ago will agree with it, so what
+   this catches here is a truncated write, the wrong file, a hand edit, or a file reused from
+   another installation. Check your own namespaces are actually present too, which no comparison
+   against the same repository can do for you. The check prints the entry count; this shows the
+   entries themselves:
+
+   ```bash
+   python3 -m json.tool config/prefixes.json | grep yourprefix
+   ```
+
+   Run the check again whenever a model is deployed after this point. From then on the repository
+   and the file can genuinely disagree, and that is the case it exists for. This is the one
+   deployment where getting it wrong is expensive.
+
+4. Point the indexer at the file, in `compose.yaml`:
 
    ```yaml
      batch-indexer:

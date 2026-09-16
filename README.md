@@ -24,11 +24,22 @@ successfully with 15.6 GiB allocated to Docker.
 Only `full-stack` is the complete platform. The other three deliberately omit the UI layer to
 keep the search configuration in the foreground.
 
-`tools/` is not a deployment. It holds `fetch-prefix-map.sh`, which generates the namespace prefix
-map the indexer needs whenever a custom content model is in play: on any of these stacks where you
-deploy a model of your own, and on `solr-to-opensearch-migration` if the repository you are
-migrating already has one. Stock repositories need nothing. See
-[docs/custom-content-models.md](docs/custom-content-models.md).
+`tools/` is not a deployment. It holds two scripts for the namespace prefix map the indexer needs
+whenever a custom content model is in play: on any of these stacks where you deploy a model of your
+own, and on `solr-to-opensearch-migration` if the repository you are migrating already has one.
+Stock repositories need neither.
+
+| Script | What it does |
+| --- | --- |
+| `fetch-prefix-map.sh` | Generates the map from the repository, which is the only component that knows every deployed model. |
+| `check-prefix-map.sh` | Compares an existing map against the repository and exits non-zero if a namespace is missing or a prefix disagrees. |
+
+Run the check after deploying a model and before an upgrade. A namespace missing from the map costs
+you whole node types, silently, and this is the only thing that reports it before your users do. The
+silence is a product defect, tracked as
+[ACS-12851](https://hyland.atlassian.net/browse/ACS-12851); if you are moving a repository that has
+content models of its own, read
+[docs/custom-content-models.md](docs/custom-content-models.md) before anything else here.
 
 ## Quick start
 

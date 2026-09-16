@@ -125,8 +125,20 @@ The indexer cannot map your namespace URI to its prefix. Look for this in its lo
 docker compose logs batch-indexer | grep "impossible to"
 ```
 
+Confirm it without reading the log, and without needing a node to exist, by comparing the map
+against the repository:
+
+```bash
+../tools/check-prefix-map.sh
+```
+
 The fix is a complete prefix map, generated from the repository itself with
-`tools/fetch-prefix-map.sh`. See [custom-content-models.md](custom-content-models.md).
+`tools/fetch-prefix-map.sh`. See [custom-content-models.md](custom-content-models.md), which also
+covers which nodes need reindexing once the map is right, since correcting it does not revisit nodes
+the cursor has already passed.
+
+That the failure is silent is tracked as
+[ACS-12851](https://hyland.atlassian.net/browse/ACS-12851).
 
 ## The indexer fails on validateDbSchemaStep with "Cannot parse null string"
 
@@ -134,7 +146,8 @@ The prefix map it loaded is missing Alfresco's own namespaces, so it cannot read
 descriptor. This happens when `alfresco.reindex.prefixes-file` points at a hand-written file
 holding only custom namespaces: the file replaces the shipped map rather than extending it.
 Fetch a complete map with `tools/fetch-prefix-map.sh`, which refuses to write one that is missing
-Alfresco's own namespaces.
+Alfresco's own namespaces. `tools/check-prefix-map.sh` reports the same condition against a file you
+already have, before the indexer starts.
 
 ## Documents are failing rather than indexing
 
