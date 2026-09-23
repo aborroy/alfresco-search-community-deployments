@@ -132,7 +132,8 @@ itself.
 - [docs/troubleshooting.md](docs/troubleshooting.md): symptoms and causes
 - [docs/hxpr-coexistence.md](docs/hxpr-coexistence.md): sharing an OpenSearch cluster with
   hxpr and Content Lake App
-- [docs/opensearch-queries-indices-and-fields.md]: a copy-pasteable query set that answers
+- [docs/opensearch-queries-indices-and-fields.md](docs/opensearch-queries-indices-and-fields.md):
+  a copy-pasteable query set that answers
   two questions against a running Alfresco Search Community deployment
 
 ## A note on naming
